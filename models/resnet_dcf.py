@@ -74,7 +74,7 @@ class ResNet(nn.Module):
         self.num_bases = num_bases
         self.initializer = initializer
 
-        self.conv1 = nn.CONV_DCF(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False,
+        self.conv1 = CONV_DCF(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False,
                                 num_bases=self.num_bases, initializer=self.initializer)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
@@ -87,7 +87,7 @@ class ResNet(nn.Module):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride, initializer=initializer, num_bases=num_bases))
+            layers.append(block(self.in_planes, planes, stride=stride, initializer=self.initializer, num_bases=self.num_bases))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
@@ -103,17 +103,17 @@ class ResNet(nn.Module):
         return out
 
 
-def ResNet18():
-    return ResNet(BasicBlock, [2,2,2,2])
+def ResNet18(**kwargs):
+    return ResNet(BasicBlock, [2,2,2,2], **kwargs)
 
-def ResNet34():
-    return ResNet(BasicBlock, [3,4,6,3])
+def ResNet34(**kwargs):
+    return ResNet(BasicBlock, [3,4,6,3], **kwargs)
 
-def ResNet50():
-    return ResNet(Bottleneck, [3,4,6,3])
+def ResNet50(**kwargs):
+    return ResNet(Bottleneck, [3,4,6,3], **kwargs)
 
-def ResNet101():
-    return ResNet(Bottleneck, [3,4,23,3])
+def ResNet101(**kwargs):
+    return ResNet(Bottleneck, [3,4,23,3], **kwargs)
 
-def ResNet152():
-    return ResNet(Bottleneck, [3,8,36,3])
+def ResNet152(**kwargs):
+    return ResNet(Bottleneck, [3,8,36,3], **kwargs)

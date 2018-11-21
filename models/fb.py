@@ -11,7 +11,7 @@ def cart2pol(x, y):
     phi = np.arctan2(y, x)
     return (phi, rho)
 
-def calculate_FB_bases(L1, path='/home/zliangak/zhicongliang/DCFNet-Exploration/others/bases/bessel.npy'):
+def calculate_FB_bases(L1, path='/home/zliangak/DCFNet-Exploration/others/bases/bessel.npy'):
 	maxK = (2 * L1 + 1)**2 - 1
 
 	L = L1 + 1
