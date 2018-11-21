@@ -6,37 +6,27 @@ import numpy as np
 import torch.utils.model_zoo as model_zoo
 from models.DCF import Conv_DCF
 
-k = -1
-weights = np.load('/home/zliangak/zhicongliang/DCFNet-VGG/bases/bases_resnet.npy')
-
 def CONV_DCF(in_channels, out_channels, kernel_size, num_bases, initializer,
-             stride=1, padding=0, bias=True):
-    global k
-    if initializer == 'PCA':
-        k+=1
-        return Conv_DCF(in_channels, out_channels, kernel_size=kernel_size, 
-                        stride=stride, padding=padding, num_bases=num_bases,
-                        bias = bias, initializer = weights[k])
-    else:
+             stride=1, padding=0, bias=True):        
+    return Conv_DCF(in_channels, out_channels, kernel_size=kernel_size, 
+                    stride=stride, padding=padding, num_bases=num_bases,
+                    bias = bias, initializer = initializer)
         
-        return Conv_DCF(in_channels, out_channels, kernel_size=kernel_size, 
-                        stride=stride, padding=padding, num_bases=num_bases,
-                        bias = bias, initializer = initializer)
-        
-
+def conv1x1(in_planes, out_planes, stride=1):
+    """1x1 convolution"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
  
-
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, num_bases, stride=1 ,downsample=None, initializer='FB'):
+    def __init__(self, inplanes, planes, num_bases, , initializer, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.conv1 = conv1x1(inplanes, planes)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = CONV_DCF(planes, planes, kernel_size=3, stride=stride,
                               padding=1, bias=False, num_bases=num_bases ,initializer=initializer)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.conv3 = conv1x1(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -70,6 +60,10 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, block, layers ,in_channels, num_bases, initializer ,data_expansion=1 , num_classes=10):
+        '''
+        out default fc layer input is of size 512*block.expansion
+        this is for input image of size 32*32, if use the model for 224*224 image, set data_expansion=7
+        '''
         self.inplanes = 64
         super(ResNet, self).__init__()
 #        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -97,11 +91,9 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                conv1x1(self.inplanes, planes * block.expansion, stride),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-
         layers = []
         layers.append(block(self.inplanes, planes, 
                             stride=stride, 
@@ -130,8 +122,6 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
-
-
 
 def resnet50(**kwargs):
     """Constructs a ResNet-50 model.

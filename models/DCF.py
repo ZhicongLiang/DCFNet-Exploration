@@ -18,9 +18,7 @@ import time
 
 from torch.nn.parameter import Parameter
 import math
-from fb import *
-
-from sklearn.decomposition import PCA
+from models.fb import calculate_FB_bases
 
 class Conv_DCF(nn.Module):
     r"""Pytorch implementation for 2D DCF Convolution operation.
@@ -62,8 +60,9 @@ class Conv_DCF(nn.Module):
         >>> output = m(_input)
 
     """
-    def __init__(self, in_channels, out_channels, kernel_size, num_bases, stride=1, padding=0, 
-        bias=True,  base_grad=False, initializer='FB'):
+    def __init__(self, in_channels, out_channels, kernel_size, num_bases,initializer,
+                stride=1, padding=0, 
+                bias=True,  base_grad=False):
         '''set up the bases, the weight(coefficient) and the bias'''
         super(Conv_DCF, self).__init__()
         self.in_channels = in_channels
@@ -79,25 +78,12 @@ class Conv_DCF(nn.Module):
             if kernel_size % 2 == 0:
                 raise Exception('Kernel size for FB initialization only supports odd number for now.')
             # base_np is of [size kernel_size*kernel_size, kmax]
-            # where kmax is defined in fb.calculate_FB_bases, kmax=15
             base_np, _, _ = calculate_FB_bases(int((kernel_size-1)/2))
             if num_bases > base_np.shape[1]:
                 raise Exception('The maximum number of bases for kernel size = %d is %d' %(kernel_size, base_np.shape[1]))
             base_np = base_np[:, :num_bases]
-            # truncate and reshape the bases
-            # the smaller the num_bases is, the less high frequence information it will capture
             base_np = base_np.reshape(kernel_size, kernel_size, num_bases)
             base_np = np.expand_dims(base_np.transpose(2,0,1), 1)
-            
-        elif type(initializer)==np.ndarray:  # PCA case
-            base_np = initializer
-            assert base_np.shape[-2:] == (kernel_size, kernel_size)
-            base_np = base_np.reshape(-1, kernel_size * kernel_size).transpose()
-            transformer = PCA(n_components = num_bases)
-            base_np = transformer.fit_transform(base_np)
-            base_np = base_np.reshape((kernel_size, kernel_size, num_bases))
-            base_np = np.expand_dims(base_np.transpose(2,0,1), 1)
-            nn.init.kaiming_normal_(self.weight, nonlinearity='relu')
             
         elif type(initializer) == str and initializer=='random':
             base_np = np.random.randn((num_bases, 1, kernel_size, kernel_size))
@@ -111,8 +97,10 @@ class Conv_DCF(nn.Module):
 
         # self.weight is the coefficients of the bases
         # it is a convolution layer of size (output_channels,input_channels*K,1,1)
-        self.weight = Parameter(torch.Tensor(
-                out_channels, in_channels*num_bases, 1, 1))
+        
+        # uniform initialization for the weigth
+        self.weight = Parameter(torch.empty(
+                out_channels, in_channels*num_bases, 1, 1).uniform_(0, 1))
         if bias:
             self.bias = Parameter(torch.Tensor(out_channels))
         else:
@@ -132,7 +120,6 @@ class Conv_DCF(nn.Module):
         feature_list = []
         _input = _input.view(FE_SIZE[0]*FE_SIZE[1], 1, FE_SIZE[2], FE_SIZE[3])
         
-
         feature = F.conv2d(_input, self.bases,
             None, self.stride, self.padding, dilation=1)
 
